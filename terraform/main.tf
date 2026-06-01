@@ -56,17 +56,17 @@ module "storage" {
 module "dataproc" {
   source = "./modules/dataproc"
 
-  project_id     = var.project_id
-  region         = var.region
-  env            = var.env
-  cluster_name   = var.cluster_name
-  master_machine = var.master_machine
-  worker_machine = var.worker_machine
-  num_workers    = var.num_workers
-  spark_version  = var.spark_version
+  project_id       = var.project_id
+  region           = var.region
+  env              = var.env
+  cluster_name     = var.cluster_name
+  master_machine   = var.master_machine
+  worker_machine   = var.worker_machine
+  num_workers      = var.num_workers
+  spark_version    = var.spark_version
   subnet_self_link = module.network.subnet_self_link
-  staging_bucket    = module.storage.staging_bucket_name
-  service_account   = module.storage.dataproc_sa_email
+  staging_bucket   = module.storage.staging_bucket_name
+  service_account  = module.storage.dataproc_sa_email
 
   depends_on = [module.network, module.storage]
 }
