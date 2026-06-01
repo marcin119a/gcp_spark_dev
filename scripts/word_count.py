@@ -15,8 +15,7 @@ def main(input_path: str, output_path: str) -> None:
 
     lines = sc.textFile(input_path)
     counts = (
-        lines
-        .flatMap(lambda line: line.split())
+        lines.flatMap(lambda line: line.split())
         .map(lambda word: (word.lower(), 1))
         .reduceByKey(lambda a, b: a + b)
         .sortBy(lambda pair: pair[1], ascending=False)
