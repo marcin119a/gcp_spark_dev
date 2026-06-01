@@ -14,7 +14,7 @@ resource "google_storage_bucket" "staging" {
 
   lifecycle_rule {
     condition { age = 7 }
-    action    { type = "Delete" }
+    action { type = "Delete" }
   }
 }
 

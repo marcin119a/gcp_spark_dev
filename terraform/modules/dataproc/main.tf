@@ -52,12 +52,12 @@ resource "google_dataproc_cluster" "spark" {
 
       # Właściwości Spark dostrojone pod mini-klaster szkoleniowy
       override_properties = {
-        "spark:spark.executor.memory"          = "2g"
-        "spark:spark.driver.memory"            = "2g"
-        "spark:spark.executor.cores"           = "1"
+        "spark:spark.executor.memory"           = "2g"
+        "spark:spark.driver.memory"             = "2g"
+        "spark:spark.executor.cores"            = "1"
         "spark:spark.dynamicAllocation.enabled" = "true"
-        "spark:spark.shuffle.service.enabled"  = "true"
-        "dataproc:dataproc.allow.zero.workers" = "false"
+        "spark:spark.shuffle.service.enabled"   = "true"
+        "dataproc:dataproc.allow.zero.workers"  = "false"
       }
     }
 
