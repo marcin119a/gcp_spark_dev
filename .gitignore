@@ -1,0 +1,60 @@
+# Terraform
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
+terraform.tfstate.d/
+*.tfplan
+*.tfplan.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+crash.log
+crash.*.log
+
+# Terraform variables (may contain secrets)
+terraform.tfvars
+*.auto.tfvars
+!terraform.tfvars.example
+
+# GCP credentials & keys
+*.json
+service-account*.json
+*-key.json
+application_default_credentials.json
+gcloud/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+*.pyc
+
+# Shell / OS
+*.log
+*.tmp
+*.bak
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Secrets & env
+.env
+.env.*
+!.env.example
+secrets/

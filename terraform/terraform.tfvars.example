@@ -1,0 +1,12 @@
+# Skopiuj do terraform.tfvars i uzupełnij swoimi wartościami:
+#   cp terraform.tfvars.example terraform.tfvars
+
+project_id     = "TWOJ_PROJECT_ID"
+region         = "europe-central2"
+zone           = "europe-central2-a"
+env            = "dev"
+cluster_name   = "spark-training-cluster"
+num_workers    = 2
+master_machine = "n1-standard-2"
+worker_machine = "n1-standard-2"
+spark_version  = "2.1-debian12"
