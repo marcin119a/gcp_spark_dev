@@ -1,0 +1,17 @@
+target-version = "py39"   # minimalna wersja Pythona na Dataproc 2.1
+
+[lint]
+select = [
+  "E",   # pycodestyle errors
+  "W",   # pycodestyle warnings
+  "F",   # pyflakes (undefined names, unused imports)
+  "I",   # isort (kolejność importów)
+  "UP",  # pyupgrade (nowoczesna składnia)
+]
+ignore = [
+  "E501",  # długość linii — Spark pipelines bywają długie
+]
+
+[format]
+quote-style = "double"
+indent-style = "space"

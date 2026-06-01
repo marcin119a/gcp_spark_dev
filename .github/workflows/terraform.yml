@@ -1,0 +1,223 @@
+name: Terraform CI/CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "terraform/**"
+      - "scripts/**"
+      - ".github/workflows/terraform.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "terraform/**"
+      - "scripts/**"
+      - ".github/workflows/terraform.yml"
+
+env:
+  TF_VERSION: "1.9.0"
+  WORKING_DIR: terraform
+
+permissions:
+  contents: read
+  id-token: write   # wymagane do Workload Identity Federation
+  pull-requests: write
+
+jobs:
+  # ── 0. Lint ────────────────────────────────────────────────────────────────
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # --- Terraform: fmt (tylko check, bez GCP auth) ---
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform fmt check
+        run: terraform fmt -check -recursive terraform/
+
+      # --- tflint: reguły dla providera google ---
+      - name: Setup tflint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: v0.52.0
+
+      - name: tflint init (pobierz plugin google)
+        run: tflint --init
+        working-directory: terraform
+
+      - name: tflint
+        run: tflint --recursive --format=compact
+        working-directory: terraform
+
+      # --- checkov: skanowanie bezpieczeństwa IaC ---
+      - name: Checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: terraform
+          framework: terraform
+          soft_fail: true   # nie blokuje pipeline — tylko raport
+          output_format: cli
+
+      # --- ruff: linting Pythona ---
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Ruff lint
+        run: ruff check scripts/
+
+      - name: Ruff format check
+        run: ruff format --check scripts/
+
+  # ── 1. Validate & Plan (każdy PR i push) ───────────────────────────────────
+  plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    needs: lint
+
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIR }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP (Workload Identity Federation)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="prefix=terraform/state"
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          terraform plan \
+            -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
+            -out=tfplan \
+            -no-color 2>&1 | tee plan_output.txt
+
+      - name: Post Plan comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('${{ env.WORKING_DIR }}/plan_output.txt', 'utf8');
+            const truncated = plan.length > 60000 ? plan.slice(0, 60000) + '\n...(skrócono)' : plan;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## Terraform Plan\n\`\`\`\n${truncated}\n\`\`\``
+            });
+
+      - name: Upload plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: ${{ env.WORKING_DIR }}/tfplan
+          retention-days: 1
+
+  # ── 2. Apply (tylko merge do main) ─────────────────────────────────────────
+  apply:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+    needs: plan
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production   # wymaga manualnego zatwierdzenia w GitHub
+
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIR }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="prefix=terraform/state"
+
+      - name: Download plan artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+          path: ${{ env.WORKING_DIR }}
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
+
+      - name: Show Outputs
+        run: terraform output
+
+  # ── 3. Submit Spark Job (opcjonalnie, po apply) ─────────────────────────────
+  spark-job:
+    name: Submit Spark Job
+    runs-on: ubuntu-latest
+    needs: apply
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Upload PySpark script to GCS
+        run: |
+          gsutil cp scripts/word_count.py \
+            gs://${{ secrets.GCP_PROJECT_ID }}-spark-staging-dev/scripts/word_count.py
+
+      - name: Submit PySpark job
+        run: |
+          gcloud dataproc jobs submit pyspark \
+            gs://${{ secrets.GCP_PROJECT_ID }}-spark-staging-dev/scripts/word_count.py \
+            --cluster=spark-training-cluster \
+            --region=europe-central2 \
+            --project=${{ secrets.GCP_PROJECT_ID }}

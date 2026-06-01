@@ -8,11 +8,10 @@ terraform {
     }
   }
 
-  # Opcjonalnie: backend GCS do przechowywania stanu (odkomentuj po stworzeniu bucketa)
-  # backend "gcs" {
-  #   bucket = "tf-state-spark-training-TWOJ_PROJECT_ID"
-  #   prefix = "terraform/state"
-  # }
+  backend "gcs" {
+    # bucket i prefix przekazywane przez -backend-config w CI (GitHub Actions)
+    # lokalnie: terraform init -backend-config="bucket=<TWOJ_BUCKET>"
+  }
 }
 
 provider "google" {
