@@ -5,6 +5,7 @@ Uruchomienie: gcloud dataproc jobs submit pyspark word_count.py \
                 -- gs://<bucket>/input/ gs://<bucket>/output/
 """
 import sys
+
 from pyspark.sql import SparkSession
 
 
