@@ -1,3 +1,13 @@
+terraform {
+  required_version = ">= 1.5"
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 5.0"
+    }
+  }
+}
+
 locals {
   # suffix losowy, żeby nazwy bucketów były globalnie unikalne
   suffix = substr(md5("${var.project_id}-${var.env}"), 0, 6)
