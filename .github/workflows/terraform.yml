@@ -177,6 +177,9 @@ jobs:
             -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
             -backend-config="prefix=terraform/state"
 
+      - name: Terraform Refresh
+        run: terraform refresh -var="project_id=${{ secrets.GCP_PROJECT_ID }}"
+
       - name: Download plan artifact
         uses: actions/download-artifact@v4
         with:

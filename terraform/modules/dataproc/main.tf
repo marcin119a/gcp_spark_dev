@@ -74,7 +74,7 @@ resource "google_dataproc_cluster" "spark" {
     # ── Auto-wyłączenie klastra po czasie nieaktywności ──────────────────────
     # Ważne w szkoleniach — zapobiega zapomnianym kosztom
     lifecycle_config {
-      idle_delete_ttl = "3600s" # wyłącz po 1 h bezczynności
+      idle_delete_ttl = "7200s" # wyłącz po 2 h bezczynności
     }
   }
 }
